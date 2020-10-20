@@ -1,2 +1,108 @@
-TEST ME
-html
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <meta name="description" content="Email message">
+    <title>Email message</title>
+
+    <script>
+        async function handleJson(res) {
+            if (!res.ok) {
+                throw new Error(`Response failed with status: ${res.status}`);
+            }
+            try {
+                const json = await res.json();
+                return json;
+            } catch (errJson) {
+                try {
+                    const resText = await res.text();
+                    throw new Error(resText); // if we can parse response text
+                } catch (errTxt) {
+                    throw new Error(`Error parsing json: ${errJson.message}`);
+                }
+            }
+        }
+
+        async function getData(marketingCampaignId, versionId) {
+            const url = `https://espmiddleware.azurewebsites.net/email/v2/messages/${marketingCampaignId}/${versionId}`;
+            return fetch(url, {
+                method: 'GET',
+                mode: 'cors',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            }).then(handleJson);
+        }
+
+        async function onLoad() {
+            try {
+                // fetch marketing campaign id and version id from params
+                const paramsFromUrl = typeof window !== 'undefined' && (new window.URLSearchParams(window.location.search));
+                const marketingCampaignId = Number(paramsFromUrl.get('id'));
+                const versionId = Number(paramsFromUrl.get('vid'));
+                const data = await getData(marketingCampaignId, versionId);
+                // console.log('data is', data);
+                if (data?.data?.data?.html?.content) {
+                    const htmlData = data?.data?.data?.html?.content;
+                    const ifrm = document.createElement('iframe');
+                    ifrm.setAttribute('id', 'ifrm');
+                    ifrm.setAttribute('class', 'fullSize');
+                    ifrm.setAttribute('srcdoc', htmlData);
+                    document.getElementById('root').appendChild(ifrm);
+                } else {
+                    document.getElementById('noHtml').style.display = 'flex';
+                    // alert('No message found');
+                }
+                document.getElementById('loader').style.display = 'none';
+            } catch (err) {
+                console.error(err);
+                document.getElementById('loader').style.display = 'none';
+                document.getElementById('errorDiv').style.display = 'flex';
+            }
+        }
+        onLoad();
+    </script>
+    <style>
+        .fullSize {
+            height: 100vh;
+            width: 100%;
+            overflow: auto;
+        }
+
+        .fullPageDiv {
+            background: rgba(255, 255, 255, .9);
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .relative {
+            position: relative;
+        }
+    </style>
+</head>
+
+<body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+
+    <div id="root" class="relative fullSize">
+        <div class="fullPageDiv" id="loader">
+            Loading...
+        </div>
+        <div class="fullPageDiv" id="noHtml" style="display: none;">
+            There is no HTML for this version.
+        </div>
+        <div class="fullPageDiv" id="errorDiv" style="display: none;">
+            An error occured, please try again
+        </div>
+    </div>
+    </div>
+
+</body>
+
+</html>
